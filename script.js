@@ -63,11 +63,12 @@ function displayForecast(days) {
     days.forEach(day => {
         const date = new Date(day.date + "T00:00:00");
         const dayName = dayNames[date.getDay()];
+        const dateStr = `${date.getDate()} ${date.toLocaleString("default", { month: "short" })}`;
 
         const card = document.createElement("div");
         card.className = "forecast-card";
         card.innerHTML = `
-            <div class="forecast-day">${dayName}</div>
+            <div class="forecast-day">${dayName}, ${dateStr}</div>
             <img src="https:${day.day.condition.icon}" alt="${day.day.condition.text}">
             <div class="forecast-high">${Math.round(day.day.maxtemp_c)}°</div>
             <div class="forecast-low">${Math.round(day.day.mintemp_c)}°</div>
