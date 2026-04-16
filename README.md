@@ -1,7 +1,3 @@
-
----
-
-## 🚀 README.md
 # Nexus Spring of Code 2026
 
 This project is part of **Nexus Spring of Code (NSoC) 2026**.
