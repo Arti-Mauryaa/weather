@@ -134,6 +134,9 @@ const config = {
 ## 📸 Demo
 
 ```
+For Deployed Version :
+https://weather-pink-psi-97.vercel.app/
+For Local Run :
 http://127.0.0.1:3000/index.html
 ```
 
