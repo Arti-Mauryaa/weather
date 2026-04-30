@@ -1,54 +1,59 @@
-// Check if config exists and has the key; otherwise, default to an empty string
-const apiKey = (typeof config !== 'undefined' && config.WEATHER_API_KEY) ? config.WEATHER_API_KEY : "";
+// Check API key
+const apiKey = (typeof config !== "undefined" && config.WEATHER_API_KEY)
+  ? config.WEATHER_API_KEY
+  : "";
 
-let currentUnit = "C"; // default
-let currentData = null; // store latest weather
+let currentUnit = "C"; // default unit
+let currentData = null; // store latest weather data
 
+// ===============================
+// 🔹 GET WEATHER
+// ===============================
 function getWeather() {
-    const city = document.getElementById("city").value.trim();
+  const city = document.getElementById("city").value.trim();
 
-    if (!city) {
-        alert("Please enter a city name");
+  if (!city) {
+    alert("Please enter a city name");
+    return;
+  }
+
+  if (!apiKey) {
+    alert("API Key missing. Check config.js");
+    console.error("Missing WEATHER_API_KEY");
+    return;
+  }
+
+  const query = city.includes(",") ? city : city + ",IN";
+
+  const url = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(query)}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        alert(data.error.message);
         return;
-    }
-
-    // Handle missing API key gracefully
-    if (!apiKey) {
-        alert("API Key is missing. If you're the developer, please check your environment variables or config.js.");
-        console.error("Weather API key not found.");
-        return;
-    }
-
-    const url = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${encodeURIComponent(city)}`;
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error.message);
-                return;
-            }
-            updateWeather(data);
-        })
-        .catch(() => {
-            alert("Failed to fetch weather data. Please check your connection.");
-        });
+      }
+      updateWeather(data);
+    })
+    .catch(() => {
+      alert("Failed to fetch weather data");
+    });
 }
 
-function updateWeather(data){
-
-  currentData = data; // store data
+// ===============================
+// 🔹 UPDATE UI
+// ===============================
+function updateWeather(data) {
+  currentData = data;
 
   document.getElementById("name").innerText =
     data.location.name + ", " + data.location.country;
 
-  let temp;
-
-  if(currentUnit === "C"){
-    temp = Math.round(data.current.temp_c) + " °C";
-  } else {
-    temp = Math.round(data.current.temp_f) + " °F";
-  }
+  let temp =
+    currentUnit === "C"
+      ? Math.round(data.current.temp_c) + " °C"
+      : Math.round(data.current.temp_f) + " °F";
 
   document.getElementById("temp").innerText = temp;
 
@@ -59,66 +64,68 @@ function updateWeather(data){
     "https:" + data.current.condition.icon;
 }
 
-
-document.getElementById("city").addEventListener("keypress", function(e){
-
-if(e.key === "Enter"){
-getWeather();
-}
-
-});
-
-
-if (apiKey) {
-    navigator.geolocation.getCurrentPosition(showPosition);
-}
-
-function showPosition(position){
-
-const lat = position.coords.latitude;
-const lon = position.coords.longitude;
-
-const url =
-`https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${lat},${lon}`;
-
-fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (!data.error) {
-                updateWeather(data);
-            }
-        })
-        .catch(err => console.error("Geolocation weather fetch failed:", err));
-}
-
-
-document.getElementById("unit-toggle").addEventListener("click", function(){
-
-  if(!currentData) return; // no data yet
-
-  if(currentUnit === "C"){
-    currentUnit = "F";
-    this.innerText = "Switch to °C";
-  } else {
-    currentUnit = "C";
-    this.innerText = "Switch to °F";
+// ===============================
+// 🔹 ENTER KEY SUPPORT
+// ===============================
+document.getElementById("city").addEventListener("keypress", function (e) {
+  if (e.key === "Enter") {
+    getWeather();
   }
-
-  updateWeather(currentData); // refresh display
 });
 
+// ===============================
+// 🔹 GEOLOCATION WEATHER
+// ===============================
+if (apiKey) {
+  navigator.geolocation.getCurrentPosition(showPosition);
+}
 
+function showPosition(position) {
+  const lat = position.coords.latitude;
+  const lon = position.coords.longitude;
 
-// 🌙 DARK MODE TOGGLE
+  const url = `https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${lat},${lon}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.error) updateWeather(data);
+    })
+    .catch(err =>
+      console.error("Geolocation weather fetch failed:", err)
+    );
+}
+
+// ===============================
+// 🔹 UNIT TOGGLE
+// ===============================
+document
+  .getElementById("unit-toggle")
+  .addEventListener("click", function () {
+    if (!currentData) return;
+
+    if (currentUnit === "C") {
+      currentUnit = "F";
+      this.innerText = "Switch to °C";
+    } else {
+      currentUnit = "C";
+      this.innerText = "Switch to °F";
+    }
+
+    updateWeather(currentData);
+  });
+
+// ===============================
+// 🌙 DARK MODE
+// ===============================
 const themeBtn = document.getElementById("theme-toggle");
 
-// Load saved theme (optional but recommended)
+// load saved theme
 if (localStorage.getItem("theme") === "dark") {
   document.body.classList.add("dark-mode");
   themeBtn.innerText = "☀️ Light Mode";
 }
 
-// Toggle on click
 themeBtn.addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
 
@@ -131,54 +138,60 @@ themeBtn.addEventListener("click", () => {
   }
 });
 
-// 🔍 CITY AUTOCOMPLETE FEATURE
-
+// ===============================
+// 🏙️ AUTOCOMPLETE
+// ===============================
 const cityInput = document.getElementById("city");
+const suggestionsList = document.getElementById("suggestions");
+let debounceTimer;
 
-// dropdown element create karo
-const dropdown = document.createElement("ul");
-dropdown.classList.add("dropdown");
-cityInput.parentNode.appendChild(dropdown);
+cityInput.addEventListener("input", function () {
+  clearTimeout(debounceTimer);
 
-// input change hone par suggestions lao
-cityInput.addEventListener("input", async function () {
-  if (!apiKey) return;
   const query = this.value.trim();
 
   if (query.length < 2) {
-    dropdown.innerHTML = "";
+    suggestionsList.innerHTML = "";
+    suggestionsList.style.display = "none";
     return;
   }
 
-  try {
-    const res = await fetch(
-      `https://api.weatherapi.com/v1/search.json?key=${apiKey}&q=${query}`
-    );
-    const data = await res.json();
+  debounceTimer = setTimeout(() => {
+    const url = `https://api.weatherapi.com/v1/search.json?key=${apiKey}&q=${encodeURIComponent(query)}`;
 
-    dropdown.innerHTML = "";
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        suggestionsList.innerHTML = "";
 
-    data.forEach((city) => {
-      const li = document.createElement("li");
-      li.innerText = `${city.name}, ${city.country}`;
+        if (data.length > 0) {
+          suggestionsList.style.display = "block";
 
-      li.addEventListener("click", () => {
-        cityInput.value = city.name + ", " + city.country;
-        dropdown.innerHTML = "";
-        getWeather(); // auto search
+          data.forEach(location => {
+            const li = document.createElement("li");
+            li.textContent = `${location.name}, ${location.country}`;
+
+            li.addEventListener("click", () => {
+              cityInput.value = location.name;
+              suggestionsList.style.display = "none";
+              getWeather();
+            });
+
+            suggestionsList.appendChild(li);
+          });
+        } else {
+          suggestionsList.style.display = "none";
+        }
+      })
+      .catch(() => {
+        suggestionsList.style.display = "none";
       });
-
-      dropdown.appendChild(li);
-    });
-
-  } catch (err) {
-    console.error("Autocomplete error:", err);
-  }
+  }, 300);
 });
 
-document.addEventListener("click", (e) => {
-  if (!cityInput.contains(e.target) && !dropdown.contains(e.target)) {
-    dropdown.innerHTML = "";
+// hide dropdown on outside click
+document.addEventListener("click", function (e) {
+  if (e.target !== cityInput) {
+    suggestionsList.style.display = "none";
   }
 });
-
